@@ -1,29 +1,38 @@
-CXX = g++
-CXXFLAGS = -std=c++17 -Wall -pthread -MMD -MP -O2
+CXX ?= g++
+CXXFLAGS = -std=c++17 -Wall -pthread -MMD -MP -O2 -Iinclude
 
 SRC_DIR = src
+EVICT_DIR = eviction
 BUILD_DIR = build
 
-SRCS := $(wildcard $(SRC_DIR)/*.cpp)
-OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SRCS))
+SRCS := $(wildcard $(SRC_DIR)/*.cpp) $(wildcard $(EVICT_DIR)/*.cpp)
+OBJS := $(patsubst %.cpp, $(BUILD_DIR)/%.o, $(SRCS))
 
 TARGET = my_redis_server
 
-all: $(TARGET)
+ifeq ($(OS),Windows_NT)
+    LDFLAGS = -lws2_32
+    TARGET_BIN = my_redis_server.exe
+else
+    LDFLAGS =
+    TARGET_BIN = my_redis_server
+endif
+
+all: $(TARGET_BIN)
 
 $(BUILD_DIR):
-	mkdir -p $(BUILD_DIR)
+	mkdir -p $(BUILD_DIR)/$(SRC_DIR) $(BUILD_DIR)/$(EVICT_DIR)
 
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | $(BUILD_DIR)
+$(BUILD_DIR)/%.o: %.cpp | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) $(OBJS) -o $(TARGET)
+$(TARGET_BIN): $(OBJS)
+	$(CXX) $(CXXFLAGS) $(OBJS) -o $(TARGET_BIN) $(LDFLAGS)
 
 clean:
-	rm -rf $(BUILD_DIR) $(TARGET)
+	rm -rf $(BUILD_DIR) $(TARGET) my_redis_server.exe dump.my_rdb
 
 rebuild: clean all
 
 run: all
-	./$(TARGET)
+	./$(TARGET_BIN)
